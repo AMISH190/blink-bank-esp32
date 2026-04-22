@@ -452,8 +452,9 @@ function confirmMfaWithdraw(){
     const pin=document.getElementById('mfaPinInput').value.trim();
     db.ref('/atm/users/'+currentUser+'/pin').once('value',snap=>{
         if(snap.val()==pin){
+            const amt = pendingWithdrawAmt;  // Save amount BEFORE closing modal
             closeMfaModal();
-            executeTransaction('withdraw',pendingWithdrawAmt);
+            executeTransaction('withdraw', amt);
         }else{alert('Incorrect PIN! Withdrawal cancelled.');closeMfaModal();}
     });
 }
