@@ -1,0 +1,22 @@
+# Firebase
+.firebase/
+.firebaserc
+
+# Node
+node_modules/
+package-lock.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Arduino build
+build/
+*.elf
+*.bin

@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blink Bank App</title>
+    <link rel="icon" href="/favicon.png" type="image/png" sizes="16x16">
+    <style>
+        :root { --bg:#0a0a0a; --card:#141414; --card-border:#222; --text:#f5f5f5; --muted:#888; --green:#22c55e; --red:#ef4444; --blue:#3b82f6; }
+        *{cursor:none !important;box-sizing:border-box;} 
+        body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;background:var(--bg);color:var(--text);margin:0;padding-top:80px;display:flex;justify-content:center;align-items:center;min-height:calc(100vh - 80px);overflow-x:hidden;}
+        #dotCanvas{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0;pointer-events:none;}
+        header{position:fixed;top:0;width:100%;height:60px;background:rgba(10,10,10,0.85);backdrop-filter:blur(20px);border-bottom:1px solid #222;display:flex;align-items:center;padding:0 20px;z-index:1000;}
+        .logo-circle{width:35px;height:35px;background:#fff;border-radius:50%;display:flex;justify-content:center;align-items:center;color:#0a0a0a;font-family:monospace;font-weight:bold;font-size:14px;margin-right:12px;box-shadow:0 0 20px rgba(255,255,255,0.1);}
+        .app-title{font-size:19px;font-weight:600;letter-spacing:-0.5px;color:#fff;flex:1;}
+        .header-avatar{width:32px;height:32px;border-radius:50%;display:none;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;margin-left:auto;cursor:none !important;transition:transform 0.2s;}
+        .header-avatar:hover{transform:scale(1.1);}
+        .header-avatar.show{display:flex;}
+        .container{background:var(--card);border:1px solid var(--card-border);padding:36px;border-radius:24px;box-shadow:0 20px 60px rgba(0,0,0,0.5);width:100%;max-width:360px;text-align:center;position:relative;z-index:1;}
+        h1{font-size:26px;font-weight:700;margin-bottom:8px;color:#fff;}
+        p.subtitle{color:var(--muted);margin-bottom:24px;font-size:14px;}
+        input{width:100%;padding:13px 16px;margin:7px 0;border:1px solid #333;border-radius:12px;font-size:15px;outline:none;background:#1a1a1a;color:#fff;transition:border 0.3s;}
+        input:focus{border-color:#555;} input::placeholder{color:#555;}
+        button{width:100%;padding:14px;margin-top:10px;border:none;border-radius:12px;font-size:15px;font-weight:600;transition:transform 0.1s,opacity 0.2s;}
+        button:active{transform:scale(0.98);}
+        .primary-btn{background:#fff;color:#0a0a0a;} .primary-btn:hover{opacity:0.9;}
+        .secondary-btn{background:#1a1a1a;color:#888;border:1px solid #333;} .secondary-btn:hover{color:#fff;border-color:#555;}
+        .green-btn{background:var(--green);color:#fff;} .red-btn{background:var(--red);color:#fff;}
+        .balance{font-size:42px;font-weight:800;color:#fff;margin:16px 0;letter-spacing:-1px;}
+        .balance-label{font-size:11px;text-transform:uppercase;color:#555;letter-spacing:2px;}
+        .divider{height:1px;background:#222;margin:20px 0;}
+        .action-header{font-size:13px;color:#555;letter-spacing:1px;text-transform:uppercase;}
+        .action-balance{font-size:28px;font-weight:700;margin:8px 0 20px;}
+        .success-msg{color:var(--green);font-weight:600;margin-top:12px;display:none;font-size:14px;}
+        .page{display:none;} .page.active{display:block;}
+        
+        /* Dashboard header row */
+        .dash-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;}
+        .dash-avatar{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;color:#fff;flex-shrink:0;}
+        .dash-info{text-align:left;flex:1;min-width:0;}
+        .dash-name{font-size:16px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .dash-id{font-size:12px;color:#555;font-family:monospace;}
+        .dash-gear{width:36px;height:36px;border-radius:50%;background:#1a1a1a;border:1px solid #333;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;transition:transform 0.2s,border-color 0.3s;}
+        .dash-gear:hover{transform:rotate(90deg);border-color:#555;}
+        
+        /* Settings toggles */
+        .setting-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid #1a1a1a;}
+        .setting-label{font-size:14px;color:#ccc;text-align:left;}
+        .setting-desc{font-size:11px;color:#555;margin-top:2px;}
+        .toggle{width:44px;height:24px;background:#333;border-radius:12px;position:relative;cursor:none !important;transition:background 0.3s;flex-shrink:0;}
+        .toggle.on{background:var(--green);}
+        .toggle::after{content:'';position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:3px;left:3px;transition:left 0.3s;}
+        .toggle.on::after{left:23px;}
+        
+        /* Profile avatar big */
+        .profile-avatar{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:28px;color:#fff;margin:0 auto 16px;}
+        .color-picker{display:flex;gap:8px;justify-content:center;margin:12px 0;}
+        .color-dot{width:28px;height:28px;border-radius:50%;border:2px solid transparent;transition:border-color 0.2s,transform 0.2s;}
+        .color-dot:hover,.color-dot.active{border-color:#fff;transform:scale(1.15);}
+        
+        /* MFA Modal */
+        .modal-overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.8);z-index:99998;display:none;align-items:center;justify-content:center;}
+        .modal-overlay.show{display:flex;}
+        .modal{background:var(--card);border:1px solid var(--card-border);border-radius:20px;padding:32px;width:90%;max-width:300px;text-align:center;}
+        .modal h2{font-size:18px;color:#fff;margin-bottom:4px;}
+        .modal p{color:#666;font-size:13px;margin-bottom:16px;}
+
+        /* Cursor + BW */
+        .cursor-dot{position:fixed;width:6px;height:6px;background:#fff;border-radius:50%;pointer-events:none;z-index:100001;transform:translate(-50%,-50%);mix-blend-mode:difference;}
+        #bw-overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99997;pointer-events:none;backdrop-filter:grayscale(100%) contrast(1.1);-webkit-backdrop-filter:grayscale(100%) contrast(1.1);clip-path:circle(0px at 50% 50%);}
+        #bw-toggle{position:fixed;bottom:20px;right:20px;width:40px;height:40px;border-radius:50%;background:#1a1a1a;border:1px solid #333;color:#888;font-size:16px;display:flex;align-items:center;justify-content:center;z-index:100002;pointer-events:auto;transition:transform 0.2s,background 0.3s,color 0.3s;}
+        #bw-toggle:hover{transform:scale(1.1);color:#fff;border-color:#555;}
+        #bw-toggle.active{background:#fff;color:#0a0a0a;border-color:#fff;}
+        @media(hover:none){*{cursor:auto !important;}.cursor-dot{display:none;}}
+    </style>
+</head>
+<body>
+
+<canvas id="dotCanvas"></canvas>
+<div class="cursor-dot" id="cursorDot"></div>
+<div id="bw-overlay"></div>
+<button id="bw-toggle" title="Toggle B&W (G)">&#9681;</button>
+
+<!-- MFA PIN Confirmation Modal -->
+<div class="modal-overlay" id="mfaModal">
+    <div class="modal">
+        <h2>&#128274; Confirm Withdrawal</h2>
+        <p>MFA is enabled. Enter your PIN to confirm.</p>
+        <input type="password" id="mfaPinInput" placeholder="Enter PIN" style="text-align:center;font-size:20px;letter-spacing:8px;">
+        <button class="red-btn" onclick="confirmMfaWithdraw()" style="margin-top:12px;">Confirm Withdrawal</button>
+        <button class="secondary-btn" onclick="closeMfaModal()">Cancel</button>
+    </div>
+</div>
+
+<header>
+    <div class="logo-circle" onclick="navigate('/')">&lt;/&gt;</div>
+    <div class="app-title" onclick="navigate('/')">Blink Bank</div>
+    <div class="header-avatar" id="headerAvatar" onclick="navigate('/profile')"></div>
+</header>
+
+<div class="container">
+    <!-- HOME -->
+    <div id="page-home" class="page">
+        <h1>Blink Bank</h1>
+        <p class="subtitle">Professional IoT Banking</p>
+        <button class="primary-btn" onclick="navigate('/login')">Sign In</button>
+        <button class="secondary-btn" onclick="navigate('/register')" style="margin-top:8px">Register</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="page-login" class="page">
+        <h1>Sign In</h1>
+        <p class="subtitle">Enter your credentials</p>
+        <input type="text" id="loginUser" placeholder="Username">
+        <input type="password" id="loginPin" placeholder="PIN">
+        <button class="primary-btn" onclick="handleLogin()">Login</button>
+        <button class="secondary-btn" onclick="navigate('/')">Back</button>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="page-register" class="page">
+        <h1>Register</h1>
+        <p class="subtitle">Create a new account</p>
+        <input type="text" id="regUser" placeholder="Username">
+        <input type="text" id="regName" placeholder="Full Name">
+        <input type="text" id="regEmail" placeholder="Email (for notifications)">
+        <input type="text" id="regPhone" placeholder="Phone (for WhatsApp alerts)">
+        <input type="password" id="regPin" placeholder="PIN (min 4 digits)">
+        <button class="primary-btn" onclick="handleRegister()">Create Account</button>
+        <button class="secondary-btn" onclick="navigate('/')">Back</button>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page">
+        <div class="dash-header">
+            <div class="dash-avatar" id="dashAvatar" onclick="navigate('/profile')"></div>
+            <div class="dash-info">
+                <div class="dash-name" id="dashName">User</div>
+                <div class="dash-id" id="dashBlinkId">BNK-000000</div>
+            </div>
+            <div class="dash-gear" onclick="navigate('/settings')">&#9881;</div>
+        </div>
+        <div class="balance-label">Current Balance</div>
+        <div class="balance" id="balanceDisplay">Rs. 0</div>
+        <div class="divider"></div>
+        <button class="green-btn" onclick="navigate('/deposit')">Deposit</button>
+        <button class="red-btn" onclick="navigate('/withdraw')">Withdraw</button>
+        <button class="secondary-btn" onclick="handleLogout()" style="margin-top:20px">Sign Out</button>
+    </div>
+
+    <!-- DEPOSIT -->
+    <div id="page-deposit" class="page">
+        <h1>Deposit</h1>
+        <div class="action-header">Available Balance</div>
+        <div class="action-balance" id="depositBalanceDisplay">Rs. 0</div>
+        <input type="number" id="depositAmount" placeholder="Amount (Rs.)" min="1">
+        <button class="green-btn" onclick="doAction('deposit')">Confirm Deposit</button>
+        <div class="success-msg" id="depositSuccess"></div>
+        <button class="secondary-btn" onclick="navigate('/dashboard')">Back</button>
+    </div>
+
+    <!-- WITHDRAW -->
+    <div id="page-withdraw" class="page">
+        <h1>Withdraw</h1>
+        <div class="action-header">Available Balance</div>
+        <div class="action-balance" id="withdrawBalanceDisplay">Rs. 0</div>
+        <input type="number" id="withdrawAmount" placeholder="Amount (Rs.)" min="1">
+        <button class="red-btn" onclick="doAction('withdraw')">Confirm Withdrawal</button>
+        <div class="success-msg" id="withdrawSuccess"></div>
+        <button class="secondary-btn" onclick="navigate('/dashboard')">Back</button>
+    </div>
+
+    <!-- PROFILE -->
+    <div id="page-profile" class="page">
+        <div class="profile-avatar" id="profileAvatar"></div>
+        <h1 style="font-size:20px;margin-bottom:16px;">Edit Profile</h1>
+        <input type="text" id="profName" placeholder="Full Name">
+        <input type="text" id="profEmail" placeholder="Email">
+        <input type="text" id="profPhone" placeholder="Phone (+91...)">
+        <input type="text" id="profBlinkId" placeholder="Blink ID" disabled style="opacity:0.5;">
+        <p style="font-size:12px;color:#555;margin:8px 0 4px;">Avatar Color</p>
+        <div class="color-picker" id="colorPicker"></div>
+        <button class="primary-btn" onclick="saveProfile()" style="margin-top:16px">Save Profile</button>
+        <button class="secondary-btn" onclick="navigate('/dashboard')">Back</button>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="page-settings" class="page">
+        <h1 style="font-size:20px;">&#9881; Settings</h1>
+        <p class="subtitle">Security & Notifications</p>
+
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">&#128274; MFA for Withdrawals</div>
+                <div class="setting-desc">Require PIN to confirm withdrawals</div>
+            </div>
+            <div class="toggle" id="mfaToggle" onclick="toggleMfa()"></div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">&#128231; Email Notifications</div>
+                <div class="setting-desc">Get alerts for every transaction</div>
+            </div>
+            <div class="toggle" id="emailToggle" onclick="toggleNotif('email')"></div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">&#128242; WhatsApp Alerts</div>
+                <div class="setting-desc">Get WhatsApp messages for withdrawals</div>
+            </div>
+            <div class="toggle" id="whatsappToggle" onclick="toggleNotif('whatsapp')"></div>
+        </div>
+
+        <div class="divider"></div>
+        <h2 style="font-size:15px;color:#ccc;text-align:left;margin-bottom:12px;">Change PIN</h2>
+        <input type="password" id="oldPinInput" placeholder="Current PIN">
+        <input type="password" id="newPinInput" placeholder="New PIN (min 4 digits)">
+        <button class="primary-btn" onclick="changePin()">Update PIN</button>
+        <button class="secondary-btn" onclick="navigate('/dashboard')" style="margin-top:16px">Back to Dashboard</button>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+<script>
+// ==============================
+//  INTERACTIVE DOT GRID
+// ==============================
+const canvas=document.getElementById('dotCanvas'),ctx=canvas.getContext('2d');
+let mouseX=-1e3,mouseY=-1e3;
+function resize(){canvas.width=innerWidth;canvas.height=innerHeight;} addEventListener('resize',resize); resize();
+document.addEventListener('mousemove',e=>{mouseX=e.clientX;mouseY=e.clientY;cursorDot.style.left=mouseX+'px';cursorDot.style.top=mouseY+'px';});
+document.addEventListener('mouseleave',()=>{mouseX=-1e3;mouseY=-1e3;});
+function drawDots(){ctx.clearRect(0,0,canvas.width,canvas.height);const S=28,cols=Math.ceil(canvas.width/S)+1,rows=Math.ceil(canvas.height/S)+1;for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const x=c*S,y=r*S,d=Math.hypot(x-mouseX,y-mouseY);let rad=1,a=0.15;if(d<120){const t=1-d/120;const e=t*t;rad=1+(5-1)*e;a=0.15+(0.9-0.15)*e;}ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,'+a+')';ctx.fill();}requestAnimationFrame(drawDots);}drawDots();
+
+// ==============================
+//  B&W TOGGLE
+// ==============================
+const overlay=document.getElementById('bw-overlay'),bwBtn=document.getElementById('bw-toggle');let isBW=false;
+function toggleBW(x,y){const m=Math.ceil(Math.hypot(Math.max(x,innerWidth-x),Math.max(y,innerHeight-y)));if(!isBW){overlay.style.transition='none';overlay.style.clipPath='circle(0px at '+x+'px '+y+'px)';requestAnimationFrame(()=>requestAnimationFrame(()=>{overlay.style.transition='clip-path 0.8s cubic-bezier(0.4,0,0.2,1)';overlay.style.clipPath='circle('+(m+50)+'px at '+x+'px '+y+'px)';}));bwBtn.classList.add('active');}else{overlay.style.transition='clip-path 0.8s cubic-bezier(0.4,0,0.2,1)';overlay.style.clipPath='circle(0px at '+x+'px '+y+'px)';bwBtn.classList.remove('active');}isBW=!isBW;}
+bwBtn.addEventListener('click',e=>{e.stopPropagation();toggleBW(e.clientX,e.clientY);});
+document.addEventListener('keydown',e=>{if((e.key==='g'||e.key==='G')&&document.activeElement.tagName!=='INPUT')toggleBW(mouseX,mouseY);});
+
+// ==============================
+//  EMAILJS INIT
+// ==============================
+emailjs.init('qsZLGtk5OgF2dANKP');
+
+function sendEmailNotification(type, amount, balance) {
+    if (!userProfile.email || !userProfile.notifications?.email) return;
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) + ', ' + now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+    emailjs.send('service_dccrqka', 'template_zibi1fa', {
+        to_name: userProfile.name || currentUser,
+        to_email: userProfile.email,
+        transaction_type: type === 'withdraw' ? 'Withdrawal' : 'Deposit',
+        amount: amount,
+        balance: balance,
+        blink_id: userProfile.blinkId || 'N/A',
+        date: dateStr
+    }).then(() => console.log('Email sent')).catch(err => {
+        console.log('Gmail failed, trying Outlook...', err);
+        emailjs.send('service_8rp8erh', 'template_zibi1fa', {
+            to_name: userProfile.name || currentUser,
+            to_email: userProfile.email,
+            transaction_type: type === 'withdraw' ? 'Withdrawal' : 'Deposit',
+            amount: amount, balance: balance,
+            blink_id: userProfile.blinkId || 'N/A', date: dateStr
+        }).catch(e => console.log('Outlook also failed', e));
+    });
+}
+
+function sendWhatsAppAlert(type, amount, balance) {
+    if (!userProfile.phone || !userProfile.notifications?.whatsapp) return;
+    const phone = userProfile.phone.replace(/[^0-9]/g, '');
+    const msg = encodeURIComponent(
+        '*Blink Bank Alert*\n\n' +
+        'Type: ' + (type === 'withdraw' ? 'Withdrawal' : 'Deposit') + '\n' +
+        'Amount: Rs. ' + amount + '\n' +
+        'Balance: Rs. ' + balance + '\n' +
+        'Blink ID: ' + (userProfile.blinkId || 'N/A') + '\n\n' +
+        'If unauthorized, secure your account immediately.'
+    );
+    window.open('https://wa.me/' + phone + '?text=' + msg, '_blank');
+}
+
+// ==============================
+//  FIREBASE + STATE
+// ==============================
+const firebaseConfig={databaseURL:"https://smartatm-wifi-default-rtdb.asia-southeast1.firebasedatabase.app"};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
+let currentUser=null, currentBalance=0, userProfile={}, pendingWithdrawAmt=0;
+const AVATAR_COLORS=['#3b82f6','#ef4444','#22c55e','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#f97316'];
+
+function getInitials(name, username) {
+    if (name && name.trim()) {
+        const parts = name.trim().split(/\s+/);
+        if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+        return parts[0].substring(0, 2).toUpperCase();
+    }
+    return (username || 'U').substring(0, 2).toUpperCase();
+}
+
+function updateAvatars() {
+    const initials = getInitials(userProfile.name, currentUser);
+    const color = userProfile.avatarColor || AVATAR_COLORS[0];
+    
+    // Header avatar
+    const ha = document.getElementById('headerAvatar');
+    ha.textContent = initials;
+    ha.style.background = color;
+    if (currentUser) ha.classList.add('show'); else ha.classList.remove('show');
+    
+    // Dashboard avatar
+    const da = document.getElementById('dashAvatar');
+    da.textContent = initials;
+    da.style.background = color;
+    
+    // Profile avatar
+    const pa = document.getElementById('profileAvatar');
+    pa.textContent = initials;
+    pa.style.background = color;
+    
+    // Dashboard info
+    document.getElementById('dashName').textContent = userProfile.name || currentUser || 'User';
+    document.getElementById('dashBlinkId').textContent = userProfile.blinkId || 'BNK-000000';
+}
+
+function generateBlinkId() {
+    return 'BNK-' + String(Math.floor(Math.random() * 999999)).padStart(6, '0');
+}
+
+// ==============================
+//  HASH ROUTER
+// ==============================
+const routes={'/':'page-home','/login':'page-login','/register':'page-register','/dashboard':'page-dashboard','/deposit':'page-deposit','/withdraw':'page-withdraw','/profile':'page-profile','/settings':'page-settings'};
+const protectedRoutes=['/dashboard','/deposit','/withdraw','/profile','/settings'];
+
+function navigate(r){window.location.hash=r;}
+function router(){
+    let r=window.location.hash.replace('#','')||'/';
+    if(protectedRoutes.includes(r)&&!currentUser){navigate('/');return;}
+    if(currentUser&&['/','/login','/register'].includes(r)){navigate('/dashboard');return;}
+    const pid=routes[r];if(!pid){navigate('/');return;}
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.getElementById(pid).classList.add('active');
+
+    if(r==='/deposit'){document.getElementById('depositBalanceDisplay').innerText='Rs. '+currentBalance;document.getElementById('depositAmount').value='';document.getElementById('depositSuccess').style.display='none';}
+    if(r==='/withdraw'){document.getElementById('withdrawBalanceDisplay').innerText='Rs. '+currentBalance;document.getElementById('withdrawAmount').value='';document.getElementById('withdrawSuccess').style.display='none';}
+    if(r==='/profile'){
+        document.getElementById('profName').value=userProfile.name||'';
+        document.getElementById('profEmail').value=userProfile.email||'';
+        document.getElementById('profPhone').value=userProfile.phone||'';
+        document.getElementById('profBlinkId').value=userProfile.blinkId||'';
+        renderColorPicker();
+        updateAvatars();
+    }
+    if(r==='/settings'){
+        document.getElementById('mfaToggle').className='toggle'+(userProfile.mfaEnabled?' on':'');
+        document.getElementById('emailToggle').className='toggle'+(userProfile.notifications?.email?' on':'');
+        document.getElementById('whatsappToggle').className='toggle'+(userProfile.notifications?.whatsapp?' on':'');
+        document.getElementById('oldPinInput').value='';
+        document.getElementById('newPinInput').value='';
+    }
+    const titles={'/':'Blink Bank','/login':'Sign In','/register':'Register','/dashboard':'Dashboard','/deposit':'Deposit','/withdraw':'Withdraw','/profile':'Profile','/settings':'Settings'};
+    document.title=(titles[r]||'Blink Bank')+' - Blink Bank';
+}
+addEventListener('hashchange',router);
+addEventListener('DOMContentLoaded',()=>{if(!location.hash)location.hash='/';router();});
+
+// ==============================
+//  COLOR PICKER
+// ==============================
+function renderColorPicker(){
+    const cp=document.getElementById('colorPicker');cp.innerHTML='';
+    AVATAR_COLORS.forEach(c=>{
+        const d=document.createElement('div');d.className='color-dot'+(c===userProfile.avatarColor?' active':'');
+        d.style.background=c;d.onclick=()=>{userProfile.avatarColor=c;renderColorPicker();updateAvatars();};
+        cp.appendChild(d);
+    });
+}
+
+// ==============================
+//  AUTH
+// ==============================
+function handleRegister(){
+    const u=document.getElementById('regUser').value.trim();
+    const n=document.getElementById('regName').value.trim();
+    const e=document.getElementById('regEmail').value.trim();
+    const ph=document.getElementById('regPhone').value.trim();
+    const p=document.getElementById('regPin').value.trim();
+    if(!u||!p)return alert('Username and PIN are required.');
+    if(u.length<3)return alert('Username must be at least 3 characters.');
+    if(p.length<4)return alert('PIN must be at least 4 digits.');
+    db.ref('/atm/users/'+u).once('value',snap=>{
+        if(snap.exists())return alert('Username already taken!');
+        const bid=generateBlinkId();
+        const col=AVATAR_COLORS[Math.floor(Math.random()*AVATAR_COLORS.length)];
+        db.ref('/atm/users/'+u).set({
+            pin:p, balance:1000, name:n, email:e, phone:ph,
+            blinkId:bid, mfaEnabled:false, avatarColor:col,
+            notifications:{email:!!e, whatsapp:!!ph}
+        }).then(()=>{alert('Account Created! Blink ID: '+bid+'\nYou got Rs. 1000 bonus.');navigate('/login');});
+    });
+}
+
+function handleLogin(){
+    const u=document.getElementById('loginUser').value.trim();
+    const p=document.getElementById('loginPin').value.trim();
+    if(!u||!p)return alert('Please fill in all fields.');
+    db.ref('/atm/users/'+u).once('value',snap=>{
+        const data=snap.val();
+        if(data&&data.pin==p){
+            currentUser=u;currentBalance=data.balance||0;
+            userProfile={name:data.name||'',email:data.email||'',phone:data.phone||'',blinkId:data.blinkId||generateBlinkId(),mfaEnabled:data.mfaEnabled||false,avatarColor:data.avatarColor||AVATAR_COLORS[0],notifications:data.notifications||{email:false,whatsapp:false}};
+            document.getElementById('balanceDisplay').innerText='Rs. '+currentBalance;
+            updateAvatars();
+            db.ref('/atm/users/'+u+'/balance').on('value',s=>{
+                currentBalance=s.val()||0;
+                document.getElementById('balanceDisplay').innerText='Rs. '+currentBalance;
+                document.getElementById('depositBalanceDisplay').innerText='Rs. '+currentBalance;
+                document.getElementById('withdrawBalanceDisplay').innerText='Rs. '+currentBalance;
+            });
+            db.ref('/atm/session').set({active:true,username:u,balance:data.balance||0,action:'login',amount:0});
+            navigate('/dashboard');
+        }else{alert('Wrong credentials!');}
+    });
+}
+
+// ==============================
+//  TRANSACTIONS + MFA
+// ==============================
+function doAction(type){
+    const inputId=(type==='deposit')?'depositAmount':'withdrawAmount';
+    const amt=parseInt(document.getElementById(inputId).value);
+    if(!amt||amt<=0)return alert('Enter a valid amount.');
+
+    // MFA check for withdrawals
+    if(type==='withdraw'&&userProfile.mfaEnabled){
+        pendingWithdrawAmt=amt;
+        document.getElementById('mfaPinInput').value='';
+        document.getElementById('mfaModal').classList.add('show');
+        return;
+    }
+    executeTransaction(type,amt);
+}
+
+function confirmMfaWithdraw(){
+    const pin=document.getElementById('mfaPinInput').value.trim();
+    db.ref('/atm/users/'+currentUser+'/pin').once('value',snap=>{
+        if(snap.val()==pin){
+            closeMfaModal();
+            executeTransaction('withdraw',pendingWithdrawAmt);
+        }else{alert('Incorrect PIN! Withdrawal cancelled.');closeMfaModal();}
+    });
+}
+function closeMfaModal(){document.getElementById('mfaModal').classList.remove('show');pendingWithdrawAmt=0;}
+
+function executeTransaction(type,amt){
+    const successId=(type==='deposit')?'depositSuccess':'withdrawSuccess';
+    const inputId=(type==='deposit')?'depositAmount':'withdrawAmount';
+    db.ref('/atm/users/'+currentUser).once('value',s=>{
+        let bal=s.val().balance;
+        let newBal=(type==='deposit')?bal+amt:bal-amt;
+        if(newBal<0)return alert('Insufficient funds!');
+        db.ref('/atm/users/'+currentUser).update({balance:newBal});
+        db.ref('/atm/session').update({action:type,amount:amt,balance:newBal});
+        
+        // Send notifications
+        sendEmailNotification(type,amt,newBal);
+        if(type==='withdraw')sendWhatsAppAlert(type,amt,newBal);
+        
+        document.getElementById(inputId).value='';
+        const msg=document.getElementById(successId);
+        msg.innerText=(type==='deposit')?'Deposited Rs. '+amt+' successfully!':'Withdrew Rs. '+amt+' successfully!';
+        msg.style.display='block';
+        setTimeout(()=>{msg.style.display='none';},4000);
+    });
+}
+
+// ==============================
+//  PROFILE & SETTINGS
+// ==============================
+function saveProfile(){
+    const n=document.getElementById('profName').value.trim();
+    const e=document.getElementById('profEmail').value.trim();
+    const ph=document.getElementById('profPhone').value.trim();
+    userProfile.name=n;userProfile.email=e;userProfile.phone=ph;
+    db.ref('/atm/users/'+currentUser).update({name:n,email:e,phone:ph,avatarColor:userProfile.avatarColor});
+    updateAvatars();
+    alert('Profile saved!');
+    navigate('/dashboard');
+}
+
+function toggleMfa(){
+    userProfile.mfaEnabled=!userProfile.mfaEnabled;
+    document.getElementById('mfaToggle').className='toggle'+(userProfile.mfaEnabled?' on':'');
+    db.ref('/atm/users/'+currentUser).update({mfaEnabled:userProfile.mfaEnabled});
+}
+
+function toggleNotif(type){
+    if(!userProfile.notifications)userProfile.notifications={email:false,whatsapp:false};
+    userProfile.notifications[type]=!userProfile.notifications[type];
+    document.getElementById(type+'Toggle').className='toggle'+(userProfile.notifications[type]?' on':'');
+    db.ref('/atm/users/'+currentUser+'/notifications').update(userProfile.notifications);
+}
+
+function changePin(){
+    const old=document.getElementById('oldPinInput').value.trim();
+    const nw=document.getElementById('newPinInput').value.trim();
+    if(!old||!nw)return alert('Fill in both fields.');
+    if(nw.length<4)return alert('New PIN must be at least 4 digits.');
+    db.ref('/atm/users/'+currentUser+'/pin').once('value',snap=>{
+        if(snap.val()==old){
+            db.ref('/atm/users/'+currentUser).update({pin:nw});
+            alert('PIN updated successfully!');
+            document.getElementById('oldPinInput').value='';
+            document.getElementById('newPinInput').value='';
+        }else{alert('Current PIN is incorrect!');}
+    });
+}
+
+function handleLogout(){
+    db.ref('/atm/session').set({active:false,username:'',balance:0,action:'logout',amount:0});
+    if(currentUser)db.ref('/atm/users/'+currentUser+'/balance').off();
+    currentUser=null;currentBalance=0;userProfile={};
+    document.getElementById('headerAvatar').classList.remove('show');
+    navigate('/');
+}
+</script>
+</body>
+</html>
